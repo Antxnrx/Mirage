@@ -57,7 +57,7 @@ Every core flow produces **fully shielded** transactions on public testnet (`ute
 - **Chain data:** lightwalletd gRPC (`testnet.zec.rocks:443`), `@grpc/grpc-js`
 - **Wallet:** zkool_graphql (local, testnet)
 - **Network privacy:** Nym Zcash SDK / mixFetch
-- **Proof links:** Zexplorer (`https://zexplorer.app/testnet/tx/<txid>`)
+- **Proof links:** Zexplorer (`https://testnet.zecblock.com/tx/<txid>`)
 - **Test coins:** Fauzec faucet (TAZ)
 
 Versions get pinned in the main README as we build.

@@ -16,4 +16,7 @@ What broke, confused or slowed us down, by area. For each item: what we tried, w
 
 ## Docs
 
+## Explorer
+- Zexplorer (`zexplorer.app/testnet/tx/<txid>`, the link the brief recommends) showed "node syncing #4,506,028" on 4 Nov 2026 while the chain was at ~4,582,130, so every transaction from that day was "Transaction not found". testnet.zecblock.com (where testnet.cipherscan.app redirects) was in sync and showed the Ironwood details. testnet.zcashexplorer.app returns 403 to scripted requests.
+
 ## Other

@@ -13,7 +13,7 @@ export interface ExitPiece {
   amount: string;
   /** Unix seconds when this piece may be sent. */
   dueAt: number;
-  status: 'waiting' | 'sent' | 'failed';
+  status: 'waiting' | 'sending' | 'sent' | 'failed';
   txid?: string;
   sentAt?: number;
   error?: string;
@@ -50,6 +50,15 @@ export class JobStore {
     } catch {
       /* none yet */
     }
+    // A piece left in 'sending' means the process stopped mid-payment: the wallet may or may not
+    // have broadcast it. Never retry it automatically (that could pay twice); surface it instead.
+    let interrupted = 0;
+    for (const j of this.jobs) for (const p of j.pieces) if (p.status === 'sending') {
+      p.status = 'failed';
+      p.error = 'interrupted by a restart while sending; check wallet activity before retrying';
+      interrupted++;
+    }
+    if (interrupted) await this.save();
   }
 
   async save() {
@@ -86,6 +95,8 @@ export class JobStore {
             await this.save();
             continue;
           }
+          p.status = 'sending';
+          await this.save();
           try {
             p.txid = await wallet(job.account).pay([{ address: job.destination, amount: p.amount }]);
             p.status = 'sent';
@@ -95,8 +106,10 @@ export class JobStore {
           } catch (e) {
             const msg = (e as Error).message;
             // Not yet spendable (prepare notes unconfirmed): try again on the next tick.
-            if (/feasible|insufficient|not enough|confirm/i.test(msg)) p.error = `waiting for funds: ${msg}`;
-            else {
+            if (/feasible|insufficient|not enough|confirm/i.test(msg)) {
+              p.status = 'waiting';
+              p.error = `waiting for funds: ${msg}`;
+            } else {
               p.status = 'failed';
               p.error = msg;
             }

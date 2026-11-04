@@ -12,7 +12,7 @@ const SHIELDED_PREFIXES = ['utest1', 'ztestsapling'];
 const TRANSPARENT_PREFIXES = ['tm', 'texs'];
 const isShielded = (a: string) => SHIELDED_PREFIXES.some((p) => a.startsWith(p));
 const isTransparent = (a: string) => TRANSPARENT_PREFIXES.some((p) => a.startsWith(p));
-const explorer = (txid: string) => `https://zexplorer.app/testnet/tx/${txid}`;
+const explorer = (txid: string) => `https://testnet.zecblock.com/tx/${txid}`;
 const now = () => Math.floor(Date.now() / 1000);
 
 class HttpError extends Error {

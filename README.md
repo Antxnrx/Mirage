@@ -9,7 +9,7 @@
 | **What it is** | Web app + API + reusable TypeScript library (`mirage-core`) |
 | **Live URL** | _TBD (deploying)_ |
 | **Demo video** | _TBD_ |
-| **Testnet txid** | `78644a966fa467cf3aa99d631d004a3f3b9bcb70500a68145fdd21b3607e1cf0`: a guarded exit's shielded prepare step (one self-send splitting the amount into five notes inside the pool) · https://zexplorer.app/testnet/tx/78644a966fa467cf3aa99d631d004a3f3b9bcb70500a68145fdd21b3607e1cf0 |
+| **Testnet txid** | `78644a966fa467cf3aa99d631d004a3f3b9bcb70500a68145fdd21b3607e1cf0`: a guarded exit's shielded prepare step (one self-send splitting the amount into five notes inside the pool) · https://testnet.zecblock.com/tx/78644a966fa467cf3aa99d631d004a3f3b9bcb70500a68145fdd21b3607e1cf0 |
 | **Team** | Megh Vyas (@MeghVyas3132), Anton (@Antxnrx) |
 
 ---
@@ -141,5 +141,5 @@ MIT
 
 - Privacy track brief: https://stadium.joinwebzero.com/programs/free-society-hack-2026/privacy/llms.txt
 - Testnet faucet: https://fauzec.com
-- Testnet explorer: https://zexplorer.app (`/testnet/tx/<txid>`)
+- Testnet explorer: https://testnet.zecblock.com (`/tx/<txid>`). Zexplorer was ~76k blocks behind on 4 Nov 2026
 - lightwalletd: https://github.com/zcash/lightwalletd

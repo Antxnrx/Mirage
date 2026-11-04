@@ -7,8 +7,8 @@ cd /srv/mirage
 exec 9>/srv/mirage/.deploy.lock
 flock -n 9 || { echo "another deploy is running"; exit 1; }
 
-rev="${SSH_ORIGINAL_COMMAND:-manual}"
-rev="${rev//[^0-9a-f]/}"; rev="${rev:0:40}"
+rev="${SSH_ORIGINAL_COMMAND:-}"
+rev="${rev//[^0-9a-f]/}"; rev="${rev:0:40}"; rev="${rev:-manual}"
 log() { echo "[deploy ${rev:0:7}] $*"; }
 
 if docker image inspect mirage-server:arm64 >/dev/null 2>&1; then

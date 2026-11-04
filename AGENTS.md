@@ -103,7 +103,7 @@ Base: same origin as the page (`/api/...`). CORS is open on `/api/*`.
 
 ```json
 { "id":"…", "account":2, "destination":"tm…", "createdAt":1793788200,
-  "prepareTxid":"…", "prepareExplorer":"https://zexplorer.app/testnet/tx/…", "remainderStaysShielded":"0.00010000",
+  "prepareTxid":"…", "prepareExplorer":"https://testnet.zecblock.com/tx/…", "remainderStaysShielded":"0.00010000",
   "pieces":[{ "amount":"0.05000000", "dueAt":1793788433, "status":"waiting|sent|failed",
               "level":"amber", "crowd":2, "holds":0, "txid":"…", "explorer":"…", "sentAt":…, "error":"held: …" }] }
 ```
@@ -171,13 +171,32 @@ It works end to end and is deliberately plain. Sections:
 - **No secrets or real-funds features:** no secrets or keys in the frontend, no analytics or trackers (privacy project), no external fonts or CDNs unless self-hosted, and no mainnet or real-funds features.
 - **Spending limit:** the per-request limit is 0.1 TAZ. Validate client-side too.
 
-## 8. Deployment
+## 8. Demo scenarios (all real, on the deployed megh-wallet)
+
+These are already in the deployed **megh-wallet**'s Activity and Guarded exits, so the UI can be designed and the video recorded against real data. Reproduce any of them from the UI. The `tm…` address below is demo-user's transparent address, so funds stay in the demo wallets.
+
+| # | Case | How to trigger | Result | txid |
+|---|---|---|---|---|
+| 1 | Receive shielded payment with memo | demo-user → megh-wallet `utest1…`, memo | ✅ received, memo "Invoice #42 paid - thanks!" | `4d2d5153…f722e3` |
+| 2 | Send shielded with memo | megh-wallet → demo-user `utest1…` | ✅ sent, memo "test1" | `aa8336e8…53c6c3` |
+| 3 | Transparent exit, 🟢 green → sent | `0.001` → `tmNxR1byN45wkmxEUidKfcJ7y7tsf8dUnnp` | sent, crowd 83 | `cf97d0b1…c6d4a4` |
+| 4 | Transparent exit, 🟡 amber → held | `0.005` → same `tm…` | held, crowd 3, proposal shown, nothing sent | — |
+| 5 | Transparent exit, 🔴 red → held | `0.0731` → same `tm…` | held, crowd 0, split proposal | — |
+| 6 | Guarded exit | "Run guarded exit" on case 5 | shielded prepare split + 4 scheduled pieces, each re-checked | prepare `b68ebe4c…` |
+| 7 | 🔴 Send anyway (forced) | "Send anyway" on a red exit (`0.0137`) | sent, recorded with its red assessment | `67f3e758…cb7a4e6` |
+| 8 | Failure: over the cap | amount `0.5` | 400 "amount must be greater than 0 and at most 0.1 TAZ" | — |
+| 9 | Failure: bad address | `zs1notatestnetaddress` | 400 "destination must be a testnet address…" | — |
+| 10 | Failure: funds still confirming | spend again right after a spend | 409 "Not enough confirmed shielded funds yet…" | — |
+
+Explorer: use **https://testnet.zecblock.com/tx/<txid>** (Zexplorer was far behind the chain on 4 Nov).
+
+## 9. Deployment
 
 - **Production demo:** an OCI server shared with **other paying production apps**. Never run anything on it that restarts or reconfigures other services.
 - **How Megh deploys:** from `main` via `deploy/oci/` (own compose project `/srv/mirage`, own Caddy site file, resource-capped).
 - **Public URL:** `https://mirage.140-238-167-7.nip.io`.
 
-## 9. Demo video (2 minutes max; judges watch only the first 2)
+## 10. Demo video (2 minutes max; judges watch only the first 2)
 
 1. **(0:00–0:15) The problem:** "leaving the shielded pool is public; same amount in and out = linked".
 2. **(0:15–0:40) Shielded send:** demo-user → megh-wallet with memo; switch wallet, the memo arrives; explorer shows nothing readable.
@@ -187,7 +206,7 @@ It works end to end and is deliberately plain. Sections:
 
 Use real transactions only. Mask nothing (testnet).
 
-## 10. House rules
+## 11. House rules
 
 - **Never commit secrets:** no wallet seeds, spending keys, `.env` or `server/data/`. Viewing keys of the demo wallet are fine.
 - **Commits:** commit messages are plain, with **no AI-assistant attribution lines or co-author trailers**, and no mention of AI tools anywhere in the repo.
