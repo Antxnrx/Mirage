@@ -99,7 +99,7 @@ Base: same origin as the page (`/api/...`). CORS is open on `/api/*`.
 | `GET /api/activity?account=ID` | `[{ txid, height, time (unix s), net, fee, received:[{ amount, memo, pool }], explorer }]`, newest first. `pool`: 0 transparent, 1 sapling, 2 orchard, 3 ironwood. `height` 0/null = not mined yet. Memos may contain `\n`. |
 | `GET /api/exits?account=ID` | Guarded exits (see shape below) |
 | `GET /api/index` | Full public boundary index `{ network, fromHeight, toHeight, generatedAt, crossings:[{ txid, height, time, direction:"shield"|"deshield", zats, pools }] }`. Large; only needed for client-side scoring or charts. |
-| `POST /api/assess` `{ amount }` | Score without sending: `{ level:"red"|"amber"|"green", crowd, reason, candidates:[{ txid, time, zats, explorer, … }] }` |
+| `POST /api/assess` `{ amount }` | Server-side score (CLI and tests). **The UI's "Check only" must NOT call this**; it scores locally with `assessLocal()` on `/api/index`, so the amount stays private. Score without sending: `{ level:"red"|"amber"|"green", crowd, reason, candidates:[{ txid, time, zats, explorer, … }] }` |
 
 ### Write (spend testnet funds)
 

@@ -4,7 +4,7 @@ Update this as the build changes. It gets copied into the submission.
 
 1. **What stays private**
    - **On-chain:** sender, receiver and amount of every shielded payment and prepare step (`utest1 → utest1`); memos are encrypted.
-   - **Which amount the user checks:** the browser downloads the whole boundary index and scores locally, so our server never sees it.
+   - **Which amount the user checks:** "Check only" downloads the whole boundary index and scores locally in the browser, so our server never sees it. (A real send still reaches the server, because the server's wallet builds the transaction.)
 
 2. **What the app reveals, to whom**
    - **Light-wallet server (`testnet.zec.rocks`):** sees our indexer's IP and request timing (public chain data only).

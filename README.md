@@ -65,6 +65,7 @@ Settings live in [`.env.example`](.env.example). `EXIT_DELAY_SCALE=0.01` turns t
 |---|---|---|
 | Index every public shield/deshield on testnet (Sapling, Orchard, Ironwood) from lightwalletd compact blocks | ✅ real | `server/src/indexer.ts`; live at `/api/index` |
 | Score an exit: crowd size + candidate entries | ✅ real | `packages/core/src/score.ts`, 8 tests |
+| **Private check in the browser** ("Check only"): downloads the public index and scores locally, so the amount never reaches any server | ✅ real | `server/public/index.html` (`assessLocal`); matches the server's `mirage-core` result on 18/18 test amounts against the live index |
 | Shielded send with encrypted memo, detected by the receiving wallet | ✅ real | `250fe9867a80df3349127ffe24119d400d37bc03056421e4835919dd29f93cf6` (memo `rent nov (demo)`) |
 | Hold a linkable transparent send | ✅ real | 0.0731 TAZ → `tm…` held at 🔴 crowd 0 |
 | Guarded exit: shielded in-pool split | ✅ real | `78644a96…1cf0` |
@@ -78,7 +79,7 @@ Settings live in [`.env.example`](.env.example). `EXIT_DELAY_SCALE=0.01` turns t
 
 ## 5. Privacy and trust
 
-1. **What stays private?** Every shielded payment and every in-pool split: sender, receiver, amount and memo are shielded on-chain. The index is public chain data only.
+1. **What stays private?** Every shielded payment and every in-pool split: sender, receiver, amount and memo are shielded on-chain. The index is public chain data only. **"Check only" runs in your browser**: the page downloads the whole public index and scores locally, so the amount you're considering never leaves your device.
 2. **What does the app reveal, and to whom?**
    - **`testnet.zec.rocks` (light-wallet server):** sees the server's IP and sync timing.
    - **Chain observers:** see each transparent exit piece (amount and time). That's unavoidable when leaving the pool; Mirage's job is to make those pieces look like many others.
@@ -88,7 +89,7 @@ Settings live in [`.env.example`](.env.example). `EXIT_DELAY_SCALE=0.01` turns t
    - **Whoever runs the wallet engine:** run locally, that's you. **On the hosted demo, the two testnet wallets are held by us, the operators.** That's fine for TAZ; for real funds, run Mirage locally.
 4. **What would you fix next?**
    - **Network privacy:** route sync and broadcast over Nym.
-   - **No server needed:** let the browser score against a locally built index, so no server is needed for checks.
+   - **No server needed:** build the index in the browser too, so even the index download doesn't touch our server.
    - **Better destinations:** support fresh destination addresses per piece where the receiver allows it (e.g. ZIP 320 TEX for exchanges).
 
 ## 6. How it's built

@@ -143,11 +143,38 @@ function renderAssessment(a) {
     ${c.length ? `<p class="muted">Recent entries an observer could pair with this exit:</p><table>${c.slice(0, 5).map((x) => `<tr><td>${(x.zats / 1e8).toFixed(8)} TAZ</td><td>${when(x.time)}</td><td><a href="${x.explorer}" target="_blank" rel="noopener" class="mono">${short(x.txid, 6)}</a></td></tr>`).join('')}</table>` : ''}`;
 }
 
+// ---- Private check: the browser downloads the public index and scores locally. ----
+// Mirrors mirage-core's assess() (packages/core/src/score.ts); keep the two in sync.
+const SCORE = { windowSecs: 7 * 24 * 3600, toleranceZats: 20000, tolerancePct: 0.005, greenCrowd: 10 };
+const amountsMatch = (a, b) => Math.abs(a - b) <= Math.max(SCORE.toleranceZats, Math.round(Math.max(a, b) * SCORE.tolerancePct));
+function assessLocal(index, zats, time) {
+  const inWin = (c) => c.zats !== null && c.time <= time && c.time >= time - SCORE.windowSecs && amountsMatch(c.zats, zats);
+  const candidates = index.crossings.filter((c) => c.direction === 'shield' && inWin(c));
+  const crowd = index.crossings.filter(inWin).length;
+  if (candidates.length === 1 && crowd <= 1) return { level: 'red', candidates, crowd, reason: 'Exactly one recent entry matches this amount and nothing else looks like it, so an observer can pair them.' };
+  if (crowd === 0) return { level: 'red', candidates, crowd, reason: 'No other recent crossing has this amount, so this exit stands out.' };
+  if (crowd < SCORE.greenCrowd) return { level: 'amber', candidates, crowd, reason: `Only ${crowd} recent crossing(s) look like this one.` };
+  return { level: 'green', candidates, crowd, reason: `${crowd} recent crossings look like this one.` };
+}
+let indexCache = null;
+async function publicIndex() {
+  if (indexCache && Date.now() - indexCache.at < 120000) return indexCache.data;
+  const data = await api('/api/index');
+  indexCache = { at: Date.now(), data };
+  return data;
+}
+const EXPLORER = 'https://testnet.zecblock.com/tx/';
+
 async function doCheck() {
   const amount = $('amount').value.trim();
   if (!amount) return;
-  const a = await api('/api/assess', { amount });
-  $('result').innerHTML = `<div class="card">${renderAssessment(a)}<p class="muted">Nothing was sent.</p></div>`;
+  const zats = Math.round(Number(amount) * 1e8);
+  if (!(zats > 0)) throw new Error('Enter an amount greater than 0');
+  const index = await publicIndex();
+  const a = assessLocal(index, zats, Math.floor(Date.now() / 1000));
+  a.candidates = a.candidates.map((c) => ({ ...c, explorer: EXPLORER + c.txid }));
+  $('result').innerHTML = `<div class="card">${renderAssessment(a)}
+    <p class="muted">🔒 Checked in your browser against ${index.crossings.length} public crossings. Your amount was not sent to any server, and nothing was sent.</p></div>`;
 }
 
 async function doSend() {
