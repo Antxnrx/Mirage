@@ -122,7 +122,8 @@ export class Indexer {
     if (this.running) return;
     this.running = true;
     try {
-      const tip = await this.lwd.latestHeight();
+      // Stay one block behind the reported tip: some servers announce a block before they can serve it.
+      const tip = (await this.lwd.latestHeight()) - 1;
       let from = this.index.toHeight ? this.index.toHeight + 1 : Math.max(1, tip - config.backfillBlocks + 1);
       while (from <= tip) {
         const to = Math.min(tip, from + 4999);

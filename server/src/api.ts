@@ -1,96 +1,176 @@
-import { Hono } from 'hono';
+import { relative } from 'node:path';
+import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { assess, commonDenominations, planExit, toZats, toZec } from 'mirage-core';
+import { config } from './config.js';
 import type { Indexer } from './indexer.js';
+import type { JobStore } from './jobs.js';
 import { wallet } from './zkool.js';
 
 const SHIELDED_PREFIXES = ['utest1', 'ztestsapling'];
-const TRANSPARENT_PREFIXES = ['tm', 'tex'];
+const TRANSPARENT_PREFIXES = ['tm', 'texs'];
 const isShielded = (a: string) => SHIELDED_PREFIXES.some((p) => a.startsWith(p));
 const isTransparent = (a: string) => TRANSPARENT_PREFIXES.some((p) => a.startsWith(p));
-const MAX_DEMO_ZEC = 1; // testnet demo cap per request
 const explorer = (txid: string) => `https://zexplorer.app/testnet/tx/${txid}`;
+const now = () => Math.floor(Date.now() / 1000);
 
-export function createApi(indexer: Indexer) {
+class HttpError extends Error {
+  constructor(public status: 400 | 404 | 409 | 429, message: string) {
+    super(message);
+  }
+}
+
+/** Rolling-hour limit on spending requests, shared by all callers. */
+const spends: number[] = [];
+function takeSpendSlot() {
+  const cutoff = Date.now() - 3600_000;
+  while (spends.length && spends[0] < cutoff) spends.shift();
+  if (spends.length >= config.sendsPerHour) throw new HttpError(429, `demo limit: ${config.sendsPerHour} spending requests per hour`);
+  spends.push(Date.now());
+}
+
+function checkAmount(amount: unknown): string {
+  const n = Number(amount);
+  if (!(n > 0) || n > config.maxPerRequestZec) throw new HttpError(400, `amount must be greater than 0 and at most ${config.maxPerRequestZec} TAZ`);
+  return toZec(toZats(n));
+}
+
+function accountFrom(c: Context, body?: { account?: number }) {
+  const id = Number(body?.account ?? c.req.query('account') ?? config.accounts[0]);
+  if (!config.accounts.includes(id)) throw new HttpError(404, `unknown account ${id}`);
+  return wallet(id);
+}
+
+export function createApi(indexer: Indexer, jobs: JobStore) {
   const app = new Hono();
   app.use('/api/*', cors());
 
-  app.get('/api/health', (c) => c.json({ ok: true, toHeight: indexer.index.toHeight, crossings: indexer.index.crossings.length }));
+  app.get('/api/health', (c) =>
+    c.json({ ok: true, network: 'testnet', toHeight: indexer.index.toHeight, crossings: indexer.index.crossings.length, limits: { maxPerRequestZec: config.maxPerRequestZec, sendsPerHour: config.sendsPerHour } }),
+  );
 
-  /** The whole public boundary index. Clients score locally so we never learn which amount they're checking. */
+  /** The whole public boundary index. Clients can score locally so the server never learns what they check. */
   app.get('/api/index', (c) => c.json(indexer.index));
 
-  // ---- Demo wallet (zkool). Bound to localhost only; see README. ----
-
-  app.get('/api/wallet', async (c) => {
-    await wallet.sync();
-    return c.json({ address: await wallet.address(), balance: await wallet.balance() });
-  });
-
-  /** Incoming shielded payments to the demo wallet, with decrypted memos (read via the wallet's keys). */
-  app.get('/api/incoming', async (c) => {
-    await wallet.sync();
-    const txs = await wallet.transactions();
-    const incoming = txs.flatMap((t) =>
-      t.notes
-        .filter((n) => n.scope === 0 && n.pool !== 0)
-        .map((n) => ({ txid: t.txid, height: t.height, time: t.time, amount: n.value, memo: n.memo, pool: n.pool, explorer: explorer(t.txid) })),
-    );
-    return c.json(incoming.sort((a, b) => (b.height || 1e12) - (a.height || 1e12)));
-  });
-
-  /** Fully shielded payment with an encrypted memo. Shielded recipients only. */
-  app.post('/api/pay-shielded', async (c) => {
-    const { address, amount, memo } = await c.req.json<{ address: string; amount: string; memo?: string }>();
-    if (!isShielded(address)) return c.json({ error: 'recipient must be a shielded testnet address (utest1 / ztestsapling)' }, 400);
-    if (!(Number(amount) > 0 && Number(amount) <= MAX_DEMO_ZEC)) return c.json({ error: `amount must be in (0, ${MAX_DEMO_ZEC}]` }, 400);
-    if (memo && Buffer.byteLength(memo) > 512) return c.json({ error: 'memo over 512 bytes' }, 400);
-    const txid = await wallet.pay([{ address, amount, memo }]);
-    return c.json({ txid, explorer: explorer(txid) });
-  });
-
-  /**
-   * Score a planned exit to a transparent address against the index (server-side convenience for the CLI and tests;
-   * the web app scores locally with mirage-core).
-   */
+  /** Score a planned exit amount without sending anything. */
   app.post('/api/assess', async (c) => {
-    const { amount, time } = await c.req.json<{ amount: string; time?: number }>();
-    const exit = { zats: toZats(amount), time: time ?? Math.floor(Date.now() / 1000) };
-    const a = assess(indexer.index, exit);
+    const { amount } = await c.req.json<{ amount: string }>();
+    const a = assess(indexer.index, { zats: toZats(amount), time: now() });
     return c.json({ ...a, candidates: a.candidates.map((x) => ({ ...x, explorer: explorer(x.txid) })) });
   });
 
+  // ---- Wallet (zkool accounts listed in ZKOOL_ACCOUNTS) ----
+
+  app.get('/api/accounts', async (c) =>
+    c.json(await Promise.all(config.accounts.map(async (id) => ({ id, name: await wallet(id).name(), address: await wallet(id).address() })))),
+  );
+
+  app.get('/api/wallet', async (c) => {
+    const w = accountFrom(c);
+    await w.sync();
+    return c.json({ account: w.id, address: await w.address(), balance: await w.balance() });
+  });
+
+  /** Recent activity: incoming shielded notes with decrypted memos, and outgoing payments. */
+  app.get('/api/activity', async (c) => {
+    const w = accountFrom(c);
+    await w.sync();
+    const txs = await w.transactions();
+    return c.json(
+      txs
+        .map((t) => ({
+          txid: t.txid,
+          height: t.height,
+          time: t.time,
+          net: t.value,
+          fee: t.fee,
+          received: t.notes.filter((n) => n.scope === 0).map((n) => ({ amount: n.value, memo: n.memo, pool: n.pool })),
+          explorer: explorer(t.txid),
+        }))
+        .sort((a, b) => (b.height || 1e12) - (a.height || 1e12)),
+    );
+  });
+
   /**
-   * Prepare step, fully shielded: a self-send that splits `amount` into common denominations inside the pool.
-   * Returns the plan, the txid and the notes created. Nothing leaves the shielded pool.
+   * The guard: every send goes through here.
+   * - Shielded destination: sent shielded right away. Nothing about it is public.
+   * - Transparent destination: scored first. Green goes through; amber/red is held and a guarded exit is proposed.
    */
-  app.post('/api/prepare', async (c) => {
-    const { amount } = await c.req.json<{ amount: string }>();
-    if (!(Number(amount) > 0 && Number(amount) <= MAX_DEMO_ZEC)) return c.json({ error: `amount must be in (0, ${MAX_DEMO_ZEC}]` }, 400);
+  app.post('/api/send', async (c) => {
+    const body = await c.req.json<{ account?: number; address: string; amount: string; memo?: string; force?: boolean }>();
+    const w = accountFrom(c, body);
+    const amount = checkAmount(body.amount);
+    const address = String(body.address ?? '').trim();
+    if (body.memo && Buffer.byteLength(body.memo) > 512) throw new HttpError(400, 'memo over 512 bytes');
+
+    if (isShielded(address)) {
+      takeSpendSlot();
+      const txid = await w.pay([{ address, amount, memo: body.memo || undefined }]);
+      return c.json({ route: 'shielded', sent: true, txid, explorer: explorer(txid), note: 'Fully shielded: sender, receiver, amount and memo are private.' });
+    }
+    if (!isTransparent(address)) throw new HttpError(400, 'destination must be a testnet address (utest1…, ztestsapling…, tm…, texs…)');
+
+    const assessment = assess(indexer.index, { zats: toZats(amount), time: now() });
+    if (assessment.level === 'green' || body.force) {
+      takeSpendSlot();
+      const txid = await w.pay([{ address, amount }]);
+      return c.json({ route: 'transparent', sent: true, forced: !!body.force && assessment.level !== 'green', txid, explorer: explorer(txid), assessment });
+    }
     const plan = planExit(toZats(amount), { denominations: commonDenominations(indexer.index) });
-    if (!plan.pieces.length) return c.json({ error: 'amount too small to split into common denominations', plan }, 400);
-    const self = await wallet.address();
-    const recipients = plan.pieces.map((p, i) => ({ address: self, amount: toZec(p.zats), memo: `mirage:prepare ${i + 1}/${plan.pieces.length}` }));
-    const txid = await wallet.pay(recipients);
     return c.json({
-      txid,
-      explorer: explorer(txid),
-      notes: plan.pieces.map((p) => ({ amount: toZec(p.zats), suggestedExitAt: p.at })),
-      remainderStaysShielded: toZec(plan.remainderZats),
+      route: 'guarded',
+      sent: false,
+      assessment: { ...assessment, candidates: assessment.candidates.map((x) => ({ ...x, explorer: explorer(x.txid) })) },
+      proposal: {
+        pieces: plan.pieces.map((p) => ({ amount: toZec(p.zats), delaySecs: Math.round((p.at - now()) * config.exitDelayScale) })),
+        remainderStaysShielded: toZec(plan.remainderZats),
+      },
     });
   });
 
-  /** Optional exit of one prepared piece to a transparent address, after scoring it. */
-  app.post('/api/exit', async (c) => {
-    const { address, amount, force } = await c.req.json<{ address: string; amount: string; force?: boolean }>();
-    if (!isTransparent(address)) return c.json({ error: 'exit destination must be a transparent testnet address (tm / tex)' }, 400);
-    if (!(Number(amount) > 0 && Number(amount) <= MAX_DEMO_ZEC)) return c.json({ error: `amount must be in (0, ${MAX_DEMO_ZEC}]` }, 400);
-    const a = assess(indexer.index, { zats: toZats(amount), time: Math.floor(Date.now() / 1000) });
-    if (a.level === 'red' && !force) return c.json({ blocked: true, assessment: a }, 409);
-    const txid = await wallet.pay([{ address, amount }]);
-    return c.json({ txid, explorer: explorer(txid), assessment: a });
+  /**
+   * Run a guarded exit: one fully shielded self-send splits the amount into common denominations,
+   * then each piece is scheduled to leave the pool separately.
+   */
+  app.post('/api/guarded-exit', async (c) => {
+    const body = await c.req.json<{ account?: number; address: string; amount: string }>();
+    const w = accountFrom(c, body);
+    const amount = checkAmount(body.amount);
+    const address = String(body.address ?? '').trim();
+    if (!isTransparent(address)) throw new HttpError(400, 'guarded exits are for transparent destinations (tm…, texs…); send shielded instead');
+    const t0 = now();
+    const plan = planExit(toZats(amount), { denominations: commonDenominations(indexer.index), now: t0 });
+    if (!plan.pieces.length) throw new HttpError(400, 'amount too small to split into common denominations');
+    takeSpendSlot();
+    const self = await w.address();
+    const prepareTxid = await w.pay(
+      plan.pieces.map((p, i) => ({ address: self, amount: toZec(p.zats), memo: `mirage:prepare ${i + 1}/${plan.pieces.length}` })),
+    );
+    const job = await jobs.add({
+      account: w.id,
+      destination: address,
+      prepareTxid,
+      remainderStaysShielded: toZec(plan.remainderZats),
+      pieces: plan.pieces.map((p) => ({ amount: toZec(p.zats), dueAt: t0 + Math.max(60, Math.round((p.at - t0) * config.exitDelayScale)), status: 'waiting' })),
+    });
+    return c.json({ job, prepareExplorer: explorer(prepareTxid) });
   });
 
-  app.onError((err, c) => c.json({ error: err.message }, 500));
+  app.get('/api/exits', (c) => {
+    const account = c.req.query('account');
+    const list = account ? jobs.jobs.filter((j) => j.account === Number(account)) : jobs.jobs;
+    return c.json(list.map((j) => ({ ...j, prepareExplorer: explorer(j.prepareTxid), pieces: j.pieces.map((p) => ({ ...p, explorer: p.txid ? explorer(p.txid) : undefined })) })));
+  });
+
+  app.onError((err, c) => {
+    if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
+    if (/No feasible note selection/i.test(err.message))
+      return c.json({ error: 'Not enough confirmed shielded funds yet. Funds from a recent transaction unlock after it is mined (about 30-90 s on testnet); try again shortly.' }, 409);
+    return c.json({ error: err.message }, 500);
+  });
+
+  // Simple web UI
+  app.use('/*', serveStatic({ root: relative(process.cwd(), config.publicDir) || '.' }));
   return app;
 }
