@@ -1,0 +1,12 @@
+# Mirage: Zcash testnet privacy check (hackathon demo). Testnet only; no real funds.
+#
+# Its own hostname, so no cookie or route is shared with another tenant. The wallet engine
+# behind it is never routed here; only the Mirage app (alias `mirage-app` on `edge`).
+
+mirage.140-238-167-7.nip.io {
+	reverse_proxy mirage-app:8787 {
+		header_up -Cf-Connecting-Ip
+		header_up X-Real-IP {client_ip}
+	}
+	encode zstd gzip
+}

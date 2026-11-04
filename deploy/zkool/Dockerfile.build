@@ -1,0 +1,15 @@
+# Builds zkool_graphql from source for the target platform (used for ARM64 hosts; the release binary is x86-64 only).
+FROM rust:1-bookworm AS build
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends protobuf-compiler cmake clang && rm -rf /var/lib/apt/lists/*
+ARG ZKOOL_REF=zkool-v6.36.0
+RUN git clone --depth 1 --branch ${ZKOOL_REF} https://github.com/hhanh00/zkool2 /src
+WORKDIR /src/rust
+ENV CARGO_BUILD_JOBS=2 CARGO_PROFILE_RELEASE_LTO=off CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 CARGO_PROFILE_RELEASE_DEBUG=0
+RUN cargo build --release --features graphql --bin zkool_graphql
+
+FROM debian:bookworm-slim
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=build /src/target/release/zkool_graphql /usr/local/bin/zkool_graphql
+VOLUME /data
+ENV LWD_URL=https://testnet.zec.rocks:443 PORT=8000
+CMD ["sh", "-c", "zkool_graphql -d /data/wallet.db -p ${PORT} --bind-address ${BIND_ADDRESS:-0.0.0.0} -l ${LWD_URL} -C 1 --allow-unauthenticated --allow-unencrypted-database"]
