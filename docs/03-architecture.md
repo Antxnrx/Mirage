@@ -26,7 +26,9 @@
 | **Index API** | Backend | Serves the full index as one JSON file. Clients score locally, so the server never learns which amount a user is checking. |
 | **mirage-core** | Backend | Crowd score: count of crossings within ±tolerance of the amount inside a time window. Planner: split into common denominations, random delays, fresh addresses. |
 | **Web app** | Frontend | React + `@noir-wallet/sdk`. Check screen, plan screen, progress with txids. |
-| **Autopilot** | Backend | zkool_graphql account, scheduled `pay` calls |
+| **Shielded payments** | Backend + Frontend | Fully shielded `utest1 → utest1` sends with encrypted memos: Noir `sendTransaction` (`fundingSource: 'shielded'`) in the web app, zkool_graphql `pay` with several recipients for the prepare step |
+| **Payment watcher** | Backend | zkool_graphql watch-only account (UFVK, with `birth` height) that detects incoming shielded payments and reads their memos |
+| **Autopilot** | Backend | zkool_graphql account, scheduled pieces after the prepare step |
 | **Nym** | Both | `@nymproject/mix-fetch` for the index download in the browser; team has Nym subscription credits for the dVPN path. Broadcast path to be confirmed with the Nym team. |
 
 ## Classifying a transaction
@@ -47,6 +49,9 @@ The light-wallet protocol's `CompactTx` includes transparent inputs (`vin`: prev
 | `CompactTx.fee` | Returned as 0 by this server, so shield amounts include the fee. Matching uses a small tolerance. |
 
 Testnet has little traffic, so crowds are small. We'll state that in the demo and README, and label any crossings we create ourselves.
+
+## Shielded-first rule
+Every core flow produces **fully shielded** transactions on public testnet (`utest1` addresses, Ironwood or Sapling receivers). Transparent exits are optional and only follow a shielded prepare step.
 
 ## Stack
 - **Chain data:** lightwalletd gRPC (`testnet.zec.rocks:443`), `@grpc/grpc-js`
