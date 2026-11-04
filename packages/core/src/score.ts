@@ -58,8 +58,9 @@ export function assess(index: BoundaryIndex, exit: ExitIntent, opts: ScoreOption
   const o = { ...DEFAULTS, ...opts };
   const candidates = linkCandidates(index, exit, o);
   const crowd = crowdFor(index, exit, o);
-  if (candidates.length === 1) {
-    return { level: 'red', candidates, crowd, reason: 'Exactly one recent entry matches this amount, so an observer can pair them.' };
+  // One matching entry is only a clean pair if nothing else looks like this exit.
+  if (candidates.length === 1 && crowd <= 1) {
+    return { level: 'red', candidates, crowd, reason: 'Exactly one recent entry matches this amount and nothing else looks like it, so an observer can pair them.' };
   }
   if (crowd === 0) {
     return { level: 'red', candidates, crowd, reason: 'No other recent crossing has this amount, so this exit stands out.' };

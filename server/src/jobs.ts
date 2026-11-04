@@ -20,7 +20,13 @@ export interface ExitPiece {
   /** Assessment at send time. */
   level?: Assessment['level'];
   crowd?: number;
+  /** Times this piece was held back because it scored red. */
+  holds?: number;
 }
+
+/** A red piece is held and re-checked later, up to MAX_HOLDS times, then sent so funds are never stuck. */
+const MAX_HOLDS = 6;
+const HOLD_SECS = 2 * 3600;
 
 export interface ExitJob {
   id: string;
@@ -71,10 +77,20 @@ export class JobStore {
           const a = assess(index(), { zats: toZats(p.amount), time: now });
           p.level = a.level;
           p.crowd = a.crowd;
+          if (a.level === 'red' && (p.holds ?? 0) < MAX_HOLDS) {
+            // Still easy to link: wait for the crowd to grow instead of sending.
+            p.holds = (p.holds ?? 0) + 1;
+            p.dueAt = now + Math.max(60, Math.round(HOLD_SECS * config.exitDelayScale));
+            p.error = `held: ${a.reason}`;
+            log(`job ${job.id.slice(0, 8)}: held ${p.amount} (red, crowd ${a.crowd}), retry #${p.holds}`);
+            await this.save();
+            continue;
+          }
           try {
             p.txid = await wallet(job.account).pay([{ address: job.destination, amount: p.amount }]);
             p.status = 'sent';
             p.sentAt = now;
+            delete p.error;
             log(`job ${job.id.slice(0, 8)}: sent ${p.amount} → ${job.destination.slice(0, 12)}… ${p.txid}`);
           } catch (e) {
             const msg = (e as Error).message;

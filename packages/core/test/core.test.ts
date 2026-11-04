@@ -55,3 +55,10 @@ test('commonDenominations favours amounts seen repeatedly', () => {
   const d = commonDenominations(idx([c('shield', 1_230_000, 1), c('deshield', 1_230_000, 2, 1)]));
   assert.equal(d.includes(1_200_000), true);
 });
+
+test('one matching entry inside a big crowd is not red', () => {
+  const many = Array.from({ length: 11 }, (_, i) => c('deshield', 200_000, 600 * (i + 1), i));
+  const a = assess(idx([...many, c('shield', 200_000, 300, 99)]), { zats: 200_000, time: NOW });
+  assert.equal(a.candidates.length, 1);
+  assert.equal(a.level, 'green');
+});
