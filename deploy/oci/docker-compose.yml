@@ -6,7 +6,8 @@ name: mirage
 #   so it is never published and never routed by the proxy.
 # - mirage (API + UI) joins the shared `edge` network under the alias `mirage-app`, which
 #   /srv/edge/sites/mirage.caddy routes to. No host ports are published.
-# - Both are capped so they can't crowd out the production tenants on this 2-core box.
+# - Both are memory-capped and run at low CPU priority, so the production tenants on this
+#   2-core box always win under contention.
 
 services:
   zkool:
@@ -16,7 +17,11 @@ services:
       - zcash-params:/root/.zcash-params
     networks: [default]
     mem_limit: 1g
-    cpus: 0.75
+    # Proof generation is CPU-bound and bursty. Instead of a hard quota (which made a send take
+    # ~40 s), allow up to 1.5 cores but at a quarter of the default scheduling weight: idle cores
+    # are used, and the production tenants win whenever they need the CPU.
+    cpus: 1.5
+    cpu_shares: 256
     restart: unless-stopped
 
   mirage:
@@ -36,7 +41,8 @@ services:
         aliases: [mirage-app]
     depends_on: [zkool]
     mem_limit: 512m
-    cpus: 0.5
+    cpus: 1
+    cpu_shares: 256
     restart: unless-stopped
 
 networks:

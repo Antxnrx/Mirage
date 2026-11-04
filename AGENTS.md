@@ -146,6 +146,8 @@ It works end to end and is deliberately plain. Sections:
 
 **Must keep (behaviour):**
 
+- **Spending calls are slow; design for it.** `POST /api/send` and `POST /api/guarded-exit` only return after the wallet builds a zero-knowledge proof: **~20–25 s on the hosted demo** (ARM server; ~35 s for the first send after a restart), ~5 s on a fast laptop. Show a clear progress state (e.g. "Building a private proof… ~20 s", with steps or an animated indicator), disable the button, and never let the page look frozen. `GET` calls are fast (<1 s).
+
 - **Real API only:** every flow above uses the real API. **No mocked data or fake transactions**, because a mocked step caps the Works score.
 - **Show every txid** with its explorer link.
 - **Pending states:** "seen → mined → confirmed". Don't claim "done" at broadcast.
