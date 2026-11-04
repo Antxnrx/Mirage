@@ -1,0 +1,184 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Colour rules: minimal and easy on the eyes.
+  - Background is ghost black and text is off-white, never pure black or pure white.
+  - Every colour is blended with white, so none is at full strength.
+  - Sections have no fill of their own, only a hairline stroke barely different from the background.
+  - Yellow is the brand and the one next action. It never signals a status.
+  - Green: money arrived, or an exit blends in.
+  - Orange: held or waiting. Kept apart from the brand yellow so the two never read as the same thing.
+  - Red: failed, or easy to trace.
+  - Grey: pending, and ordinary sends. Spending money is not an error, so it stays neutral.
+  Every status also carries a word, and nearly always an icon, so colour is never the only signal.
+*/
+:root {
+  --background: #171614;
+  --foreground: #e8e6e1;
+  --card: #171614;
+  --card-foreground: #e8e6e1;
+  --popover: #1c1b18;
+  --popover-foreground: #e8e6e1;
+  --primary: #f5cd78;
+  --primary-foreground: #1b1a17;
+  --secondary: #1f1e1b;
+  --secondary-foreground: #e8e6e1;
+  --muted: #1f1e1b;
+  --muted-foreground: #a09e98;
+  --accent: #1f1e1b;
+  --accent-foreground: #e8e6e1;
+  --destructive: #ec8f98;
+  --border: #25241f;
+  --input: #25241f;
+  --ring: #f5cd78;
+  --success: #8fd9ab;
+  --warning: #f2a97c;
+  --radius: 1.25rem;
+  /* On ghost black a real dark shadow can show, so depth no longer needs a glow. */
+  --shadow-soft: 0 10px 28px -16px rgb(0 0 0 / 0.45);
+  --shadow-soft-sm: 0 6px 18px -12px rgb(0 0 0 / 0.4);
+  --shadow-primary: 0 8px 22px -14px rgb(0 0 0 / 0.5);
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  /* The one card style used on every page. */
+  .surface {
+    border-width: 1px;
+    border-radius: 1.75rem;
+    box-shadow: var(--shadow-soft);
+
+  }
+  .surface-sm {
+    border-width: 1px;
+    box-shadow: var(--shadow-soft-sm);
+
+  }
+  /* Small uppercase labels above figures and sections. */
+  .caps {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+}
+
+/* Unlayered so they apply over the shadcn component defaults, on every page. */
+[data-variant="default"]:not(:disabled) {
+  box-shadow: var(--shadow-primary);
+}
+[data-variant="outline"]:not(:disabled) {
+  box-shadow: var(--shadow-soft-sm);
+}
+[data-variant="outline"] {
+  background-color: transparent;
+}
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"] {
+  border-radius: 1.75rem;
+  background-color: var(--popover);
+  box-shadow: 0 24px 60px -24px rgb(0 0 0 / 0.6);
+}
+
+/* A quiet focus state for typed fields: a thin line, not a thick ring. */
+[data-slot="input"]:not(.amount-field):focus-visible,
+[data-slot="textarea"]:focus-visible {
+  border-color: color-mix(in srgb, var(--ring) 45%, var(--border));
+  box-shadow: none;
+}
+/* Form fields use a soft fill rather than an outline. */
+.field {
+  border-color: transparent;
+  background-color: var(--muted);
+  box-shadow: none;
+}
+/* A main action that isn't ready yet is a quiet grey, not a dim yellow. */
+.action:disabled {
+  opacity: 1;
+  background-color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* On sharp screens, a stroke of half a CSS pixel draws as one true hairline. */
+@media (min-resolution: 2dppx) {
+  .surface,
+  .surface-sm,
+  [data-variant="outline"],
+  [data-slot="input"]:not(.amount-field),
+  [data-slot="textarea"],
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"] {
+    border-width: 0.5px;
+  }
+}
+
+@keyframes mirage-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+
+.mirage-progress-bar {
+  animation: mirage-progress 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mirage-progress-bar {
+    animation: none;
+    transform: none;
+    width: 100% !important;
+    opacity: 0.5;
+  }
+  .animate-spin,
+  .animate-pulse {
+    animation: none;
+  }
+}
