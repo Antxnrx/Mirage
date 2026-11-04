@@ -1,0 +1,6 @@
+FROM ubuntu:22.04
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY zkool_graphql /usr/local/bin/zkool_graphql
+VOLUME /data
+ENV LWD_URL=https://testnet.zec.rocks:443 PORT=8000
+CMD ["sh", "-c", "zkool_graphql -d /data/wallet.db -p ${PORT} --bind-address ${BIND_ADDRESS:-0.0.0.0} -l ${LWD_URL} -C 1 --allow-unauthenticated --allow-unencrypted-database"]

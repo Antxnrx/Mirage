@@ -13,7 +13,7 @@ export async function gql<T = any>(query: string, variables?: Record<string, unk
 }
 
 export interface WalletTx {
-  txid: string; height: number; time: number; value: string; fee: string;
+  txid: string; height: number; time: number | string; value: string; fee: string;
   notes: { pool: number; value: string; scope: number; memo: string | null }[];
 }
 

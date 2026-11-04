@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { BoundaryIndex, Crossing } from 'mirage-core';
 import { config } from './config.js';
-import { txidHex, type CompactBlock, type CompactTx, type LwdClient } from './lightwalletd.js';
+import { createClient, txidHex, type CompactBlock, type CompactTx, type LwdClient } from './lightwalletd.js';
 
 const INDEX_FILE = () => join(config.dataDir, 'index.json');
 
@@ -46,6 +46,7 @@ export class Indexer {
   private running = false;
 
   constructor(private lwd: LwdClient) {}
+
 
   async load() {
     try {
@@ -131,6 +132,11 @@ export class Indexer {
         log(`indexed ${from}..${to}: +${n} crossings (total ${this.index.crossings.length})`);
         from = to + 1;
       }
+    } catch (e) {
+      // A dropped network (e.g. Wi-Fi change) can leave the gRPC channel unusable: rebuild it.
+      try { this.lwd.close(); } catch { /* already closed */ }
+      this.lwd = createClient();
+      throw e;
     } finally {
       this.running = false;
     }

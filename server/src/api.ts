@@ -82,7 +82,8 @@ export function createApi(indexer: Indexer, jobs: JobStore) {
         .map((t) => ({
           txid: t.txid,
           height: t.height,
-          time: t.time,
+          // zkool returns block time as a UTC string without a zone; expose Unix seconds like the rest of the API.
+          time: typeof t.time === 'string' ? Math.floor(Date.parse(`${t.time}Z`) / 1000) : t.time,
           net: t.value,
           fee: t.fee,
           received: t.notes.filter((n) => n.scope === 0).map((n) => ({ amount: n.value, memo: n.memo, pool: n.pool })),
