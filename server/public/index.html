@@ -78,8 +78,15 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+// API base: same origin by default. For frontend work against the live demo, open
+// index.html?api=https://mirage.140-238-167-7.nip.io (remembered in this browser).
+const API_BASE = (() => {
+  const q = new URLSearchParams(location.search).get('api');
+  try { if (q !== null) localStorage.setItem('mirage.api', q); return (q ?? localStorage.getItem('mirage.api') ?? '').replace(/\/$/, ''); }
+  catch { return (q ?? '').replace(/\/$/, ''); }
+})();
 const api = async (path, body) => {
-  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const r = await fetch(API_BASE + path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
   const j = await r.json().catch(() => ({}));
   if (!r.ok && !j.route) throw new Error(j.error || `HTTP ${r.status}`);
   return j;

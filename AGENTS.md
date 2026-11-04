@@ -72,7 +72,16 @@ Or `docker compose up -d --build` (both together).
 2. Fund the first from https://fauzec.com (1 TAZ/day/address).
 3. Send some to the second from the UI.
 
-**Frontend-only work:** you don't need a local wallet at all. Point the UI at the deployed API (see §8) or ask Megh for the URL.
+**Frontend-only work: no `.env`, no wallet, no keys needed.** Serve the folder and point the page at the live API:
+
+```bash
+npx serve server/public -l 5173        # or: python3 -m http.server 5173 -d server/public
+open "http://localhost:5173/?api=https://mirage.140-238-167-7.nip.io"
+```
+
+`?api=` is remembered in the browser (localStorage key `mirage.api`); `?api=` with an empty value resets to same-origin. CORS is open on `/api/*`.
+
+⚠ **This talks to the real demo wallets.** Sends spend real testnet TAZ from megh-wallet/demo-user (caps: 0.1 TAZ per send, 30 sends/hour shared by everyone). Use "Check only" while styling, and don't burn the demo balance before the video.
 
 **Demo speed:** `EXIT_DELAY_SCALE=0.01` turns hours-apart exit pieces into minutes.
 
