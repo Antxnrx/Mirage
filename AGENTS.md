@@ -39,7 +39,8 @@ server/src/
   jobs.ts                 guarded-exit scheduler (re-checks and holds pieces)
   zkool.ts                wallet engine client (zkool_graphql over GraphQL)
   lightwalletd.ts         gRPC client for testnet.zec.rocks
-server/public/index.html  THE UI. Single static file, vanilla JS, no build step. ← frontend work happens here
+web/                      THE UI source. React, Tailwind and shadcn/ui, with its own package.json (not a root workspace). ← frontend work happens here
+server/public/            Built UI, committed. Don't edit by hand: run `npm install && npm run build` in web/. The server needs no build step.
 server/proto/             vendored lightwallet-protocol protos (MIT)
 deploy/                   Dockerfiles (zkool for x86 + ARM64), OCI compose + Caddy site
 docs/                     product, architecture, competitors, trust note, research
@@ -138,9 +139,9 @@ The body is always `{ error: "human-readable message" }`:
 | `tm…` | transparent | "Public" |
 | `texs…` | TEX | "Public" |
 
-## 6. The UI today (`server/public/index.html`)
+## 6. The UI today (`web/`, built to `server/public/`)
 
-It works end to end and is deliberately plain. Sections:
+The `web/` app replaces the original plain page and uses the same API. Screens: Home (balance, action tiles, safe exit progress, network stats, activity), Send (details → review or held → progress → seen/mined/confirmed), Receive, Check (scores an amount without sending) and Safe exit (timeline). `?api=` still works. The list below is the original page's behaviour, which the new UI keeps:
 
 1. **Header:** network status (indexed block, number of public crossings).
 2. **Wallet:** account switcher, shielded balance, pool breakdown, address and Copy button.
