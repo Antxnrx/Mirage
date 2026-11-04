@@ -1,0 +1,16 @@
+{
+  "name": "mirage-core",
+  "version": "0.1.0",
+  "description": "Linkability scoring and exit planning for Zcash shielded-pool boundary crossings",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "files": ["dist"],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "node --import tsx --test test/*.test.ts"
+  },
+  "devDependencies": { "tsx": "^4.19.2", "typescript": "^5.6.3", "@types/node": "^22.10.0" }
+}

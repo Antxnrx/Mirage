@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mirage</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --text:#e8eaf0; --muted:#9aa3b2; --accent:#f4b728;
+          --red:#ff5c5c; --amber:#ffb020; --green:#2fd27a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:20px 16px 60px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { margin:0; font-size:26px; } h1 span { color:var(--accent); }
+  h2 { font-size:16px; margin:0 0 12px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input, select, textarea { width:100%; background:#0c0e12; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 10px; font:inherit; }
+  button { background:var(--accent); color:#111; border:0; border-radius:8px; padding:9px 14px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--text); border:1px solid var(--line); }
+  button:disabled { opacity:.5; cursor:wait; }
+  code, .mono { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12.5px; word-break:break-all; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:999px; font-weight:700; font-size:13px; }
+  .red { background:rgba(255,92,92,.15); color:var(--red); } .amber { background:rgba(255,176,32,.15); color:var(--amber); }
+  .green { background:rgba(47,210,122,.15); color:var(--green); }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; } td, th { text-align:left; padding:6px 4px; border-top:1px solid var(--line); vertical-align:top; }
+  a { color:var(--accent); }
+  .balance { font-size:28px; font-weight:700; }
+  .err { color:var(--red); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1><span>Mirage</span> · stay private when you leave the pool</h1>
+    <div class="muted" id="netinfo">Zcash testnet</div>
+  </header>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2>Wallet</h2>
+      <select id="account" style="width:auto"></select>
+    </div>
+    <div class="balance" id="balance">…</div>
+    <div class="muted" id="pools"></div>
+    <label>Your shielded address</label>
+    <div class="row"><code id="address" style="flex:1">…</code><button class="ghost" id="copy">Copy</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Send</h2>
+    <p class="muted">Every send is checked first. Shielded addresses (<code>utest1…</code>) go out fully private. Transparent addresses (<code>tm…</code>, like an exchange deposit) are scored against recent public pool crossings; if the exit is easy to link, Mirage holds it and offers a guarded exit.</p>
+    <label for="to">To</label>
+    <input id="to" placeholder="utest1… or tm…" autocomplete="off" />
+    <div class="row">
+      <div style="flex:1"><label for="amount">Amount (TAZ)</label><input id="amount" inputmode="decimal" placeholder="0.05" /></div>
+      <div style="flex:2"><label for="memo">Memo (shielded only, encrypted)</label><input id="memo" maxlength="200" placeholder="optional" /></div>
+    </div>
+    <div class="row" style="margin-top:12px"><button id="send">Check & send</button><button class="ghost" id="check">Check only</button></div>
+    <div id="result"></div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between"><h2>Guarded exits</h2><button class="ghost" id="refreshExits">Refresh</button></div>
+    <div id="exits" class="muted">None yet.</div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between"><h2>Activity</h2><button class="ghost" id="refreshActivity">Refresh</button></div>
+    <div id="activity" class="muted">Loading…</div>
+  </section>
+
+  <p class="muted">Testnet only. Amounts are TAZ (no value). Mirage reads public chain data and your own wallet; it never pools funds with other users.</p>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const r = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok && !j.route) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const short = (s, n = 10) => (s && s.length > 2 * n ? `${s.slice(0, n)}…${s.slice(-6)}` : s);
+const when = (t) => (t ? new Date(t * 1000).toLocaleString() : 'pending');
+const POOLS = { 0: 'transparent', 1: 'sapling', 2: 'orchard', 3: 'ironwood' };
+const acct = () => Number($('account').value);
+const busy = (btn, on) => { btn.disabled = on; };
+
+function pill(level, text) { return `<span class="pill ${level}">${esc(text || level.toUpperCase())}</span>`; }
+
+async function loadHealth() {
+  try { const h = await api('/api/health'); $('netinfo').textContent = `Zcash testnet · indexed to block ${h.toHeight} · ${h.crossings} public crossings`; } catch {}
+}
+async function loadAccounts() {
+  const list = await api('/api/accounts');
+  $('account').innerHTML = list.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+}
+async function loadWallet() {
+  $('balance').textContent = '…';
+  const w = await api(`/api/wallet?account=${acct()}`);
+  const b = w.balance; const shielded = Number(b.sapling) + Number(b.orchard) + Number(b.ironwood);
+  $('balance').textContent = `${shielded.toFixed(4)} TAZ shielded`;
+  $('pools').textContent = `ironwood ${b.ironwood} · sapling ${b.sapling} · orchard ${b.orchard} · transparent ${b.transparent}`;
+  $('address').textContent = w.address;
+}
+async function loadActivity() {
+  const a = await api(`/api/activity?account=${acct()}`);
+  if (!a.length) { $('activity').textContent = 'No transactions yet.'; return; }
+  $('activity').innerHTML = `<table><tr><th>When</th><th>Net</th><th>Received / memo</th><th>Tx</th></tr>${a.slice(0, 15).map((t) => `
+    <tr><td>${when(t.time)}</td><td>${esc(t.net)}</td>
+    <td>${t.received.map((n) => `${esc(n.amount)} <span class="muted">(${POOLS[n.pool]})</span>${n.memo ? ` · <em>${esc(n.memo.split('\n')[0])}</em>` : ''}`).join('<br>') || '<span class="muted">—</span>'}</td>
+    <td><a href="${t.explorer}" target="_blank" rel="noopener" class="mono">${short(t.txid, 6)}</a></td></tr>`).join('')}</table>`;
+}
+async function loadExits() {
+  const list = await api(`/api/exits?account=${acct()}`);
+  if (!list.length) { $('exits').textContent = 'None yet.'; return; }
+  $('exits').innerHTML = list.map((j) => `
+    <div style="margin-bottom:14px">
+      <div>To <code>${esc(short(j.destination, 12))}</code> · prepared in one shielded tx <a href="${j.prepareExplorer}" target="_blank" rel="noopener" class="mono">${short(j.prepareTxid, 6)}</a>
+      ${Number(j.remainderStaysShielded) > 0 ? `· ${j.remainderStaysShielded} stays shielded` : ''}</div>
+      <table><tr><th>Piece</th><th>Due</th><th>Status</th><th>Check at send</th></tr>${j.pieces.map((p) => `
+        <tr><td>${esc(p.amount)}</td><td>${when(p.dueAt)}</td>
+        <td>${p.status === 'sent' ? `sent <a href="${p.explorer}" target="_blank" rel="noopener" class="mono">${short(p.txid, 6)}</a>` : esc(p.status)}${p.error ? `<div class="muted">${esc(p.error.slice(0, 90))}</div>` : ''}</td>
+        <td>${p.level ? pill(p.level, `${p.level} · crowd ${p.crowd}`) : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>
+    </div>`).join('');
+}
+
+function renderAssessment(a) {
+  const c = a.candidates || [];
+  return `<p>${pill(a.level)} <strong>Crowd: ${a.crowd}</strong> — ${esc(a.reason)}</p>
+    ${c.length ? `<p class="muted">Recent entries an observer could pair with this exit:</p><table>${c.slice(0, 5).map((x) => `<tr><td>${(x.zats / 1e8).toFixed(8)} TAZ</td><td>${when(x.time)}</td><td><a href="${x.explorer}" target="_blank" rel="noopener" class="mono">${short(x.txid, 6)}</a></td></tr>`).join('')}</table>` : ''}`;
+}
+
+async function doCheck() {
+  const amount = $('amount').value.trim();
+  if (!amount) return;
+  const a = await api('/api/assess', { amount });
+  $('result').innerHTML = `<div class="card">${renderAssessment(a)}<p class="muted">Nothing was sent.</p></div>`;
+}
+
+async function doSend() {
+  const body = { account: acct(), address: $('to').value.trim(), amount: $('amount').value.trim(), memo: $('memo').value };
+  const r = await api('/api/send', body);
+  if (r.sent) {
+    $('result').innerHTML = `<div class="card"><p>${pill('green', r.route === 'shielded' ? 'SENT SHIELDED' : 'SENT')} ${esc(r.note || '')}</p>
+      ${r.assessment ? renderAssessment(r.assessment) : ''}
+      <p>Transaction: <a href="${r.explorer}" target="_blank" rel="noopener" class="mono">${r.txid}</a></p></div>`;
+    setTimeout(refreshAll, 4000);
+    return;
+  }
+  const p = r.proposal;
+  $('result').innerHTML = `<div class="card">
+    <p><strong>Held.</strong> This exit is easy to link, so Mirage didn't send it.</p>
+    ${renderAssessment(r.assessment)}
+    <h2 style="margin-top:14px">Guarded exit</h2>
+    <p class="muted">First, one fully shielded transaction splits ${esc(body.amount)} TAZ into common amounts inside the pool. Then each piece leaves separately, re-checked right before it goes.</p>
+    <table><tr><th>Piece</th><th>Leaves in about</th></tr>${p.pieces.map((x) => `<tr><td>${x.amount}</td><td>${Math.round(x.delaySecs / 60)} min</td></tr>`).join('')}</table>
+    ${Number(p.remainderStaysShielded) > 0 ? `<p class="muted">${p.remainderStaysShielded} TAZ doesn't fit a common amount and stays shielded.</p>` : ''}
+    <div class="row" style="margin-top:10px"><button id="runGuarded">Run guarded exit</button><button class="ghost" id="forceSend">Send anyway</button></div>
+  </div>`;
+  $('runGuarded').onclick = () => run($('runGuarded'), async () => {
+    const g = await api('/api/guarded-exit', { account: acct(), address: body.address, amount: body.amount });
+    $('result').innerHTML = `<div class="card"><p>${pill('green', 'PREPARED')} Split inside the shielded pool: <a href="${g.prepareExplorer}" target="_blank" rel="noopener" class="mono">${g.job.prepareTxid}</a></p><p class="muted">Pieces will leave on schedule. Track them under Guarded exits.</p></div>`;
+    refreshAll();
+  });
+  $('forceSend').onclick = () => run($('forceSend'), async () => {
+    const f = await api('/api/send', { ...body, force: true });
+    $('result').innerHTML = `<div class="card"><p>${pill('red', 'SENT ANYWAY')} <a href="${f.explorer}" target="_blank" rel="noopener" class="mono">${f.txid}</a></p></div>`;
+    refreshAll();
+  });
+}
+
+async function run(btn, fn) {
+  busy(btn, true);
+  try { await fn(); } catch (e) { $('result').innerHTML = `<div class="card err">${esc(e.message)}</div>`; } finally { busy(btn, false); }
+}
+const refreshAll = () => Promise.all([loadWallet(), loadActivity(), loadExits(), loadHealth()]).catch((e) => console.error(e));
+
+$('send').onclick = () => run($('send'), doSend);
+$('check').onclick = () => run($('check'), doCheck);
+$('refreshExits').onclick = () => loadExits();
+$('refreshActivity').onclick = () => loadActivity();
+$('account').onchange = refreshAll;
+$('copy').onclick = () => navigator.clipboard?.writeText($('address').textContent);
+
+(async () => { await loadAccounts(); await refreshAll(); setInterval(() => { loadExits(); loadHealth(); }, 20000); })();
+</script>
+</body>
+</html>

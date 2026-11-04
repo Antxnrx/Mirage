@@ -1,0 +1,49 @@
+name: mirage
+
+# Mirage on the shared OCI box: Zcash TESTNET only.
+#
+# - zkool (wallet engine) is on this project's private network only. It is unauthenticated,
+#   so it is never published and never routed by the proxy.
+# - mirage (API + UI) joins the shared `edge` network under the alias `mirage-app`, which
+#   /srv/edge/sites/mirage.caddy routes to. No host ports are published.
+# - Both are capped so they can't crowd out the production tenants on this 2-core box.
+
+services:
+  zkool:
+    image: mirage-zkool:arm64
+    volumes:
+      - zkool-data:/data
+      - zcash-params:/root/.zcash-params
+    networks: [default]
+    mem_limit: 1g
+    cpus: 0.75
+    restart: unless-stopped
+
+  mirage:
+    image: mirage-server:arm64
+    environment:
+      ZKOOL_URL: http://zkool:8000/graphql
+      ZKOOL_ACCOUNTS: "1,2"
+      EXIT_DELAY_SCALE: "0.01"
+      MAX_PER_REQUEST_ZEC: "0.1"
+      SENDS_PER_HOUR: "30"
+      INDEX_BACKFILL_BLOCKS: "40000"
+    volumes:
+      - mirage-data:/app/server/data
+    networks:
+      default:
+      edge:
+        aliases: [mirage-app]
+    depends_on: [zkool]
+    mem_limit: 512m
+    cpus: 0.5
+    restart: unless-stopped
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  zkool-data: {}
+  zcash-params: {}
+  mirage-data: {}
