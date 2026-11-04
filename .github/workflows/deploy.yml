@@ -1,0 +1,54 @@
+name: Deploy
+
+# Builds the ARM64 image of the Mirage server and ships it to the OCI host over SSH.
+# The deploy key is restricted on the host to /srv/mirage/deploy.sh, which loads the image,
+# recreates only the mirage container, health-checks it and rolls back on failure.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-oci
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-24.04-arm
+    environment: production
+    steps:
+      - name: Check deploy secrets
+        id: cfg
+        env:
+          OCI_DEPLOY_KEY: ${{ secrets.OCI_DEPLOY_KEY }}
+        run: |
+          if [ -z "$OCI_DEPLOY_KEY" ]; then
+            echo "::notice::OCI deploy secrets not configured; skipping deploy (see deploy/README.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.ready == 'true'
+      - name: Build image (linux/arm64)
+        if: steps.cfg.outputs.ready == 'true'
+        run: docker build -t mirage-server:arm64 .
+      - name: Ship and deploy
+        if: steps.cfg.outputs.ready == 'true'
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+          OCI_DEPLOY_KEY: ${{ secrets.OCI_DEPLOY_KEY }}
+          OCI_KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$OCI_DEPLOY_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$OCI_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          docker save mirage-server:arm64 | gzip -1 | \
+            ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "$OCI_USER@$OCI_HOST" "$GITHUB_SHA"

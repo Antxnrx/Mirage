@@ -32,3 +32,27 @@ The host runs other production tenants. Rules:
   ```
 - **Ship images over SSH:** `docker save mirage-server:arm64 | gzip -1 | ssh oci docker load`
 - **Update:** `cd /srv/mirage && docker compose up -d mirage` (recreates only Mirage's own container).
+
+## CI/CD (GitHub Actions)
+
+- **`ci.yml`:** on every PR and push to `main`, runs the mirage-core tests and typechecks the server.
+- **`deploy.yml`:** on push to `main` (code changes only) or manual run:
+  1. Runs CI, then builds the ARM64 image on a GitHub ARM runner.
+  2. Ships it over SSH as a gzipped `docker save`.
+  3. On the host, the deploy key may only run `/srv/mirage/deploy.sh` (forced command), which loads the image, recreates **only** the `mirage` container, health-checks it, and rolls back to the previous image on failure.
+
+One-time setup (done by a maintainer with shell access):
+
+```bash
+# 1. Deploy key (keep the private half only in GitHub secrets)
+ssh-keygen -t ed25519 -N "" -C mirage-ci-deploy -f ./mirage-deploy
+# 2. On the host: allow it to run the deploy script and nothing else
+echo "command=\"/srv/mirage/deploy.sh\",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty $(cat mirage-deploy.pub)" \
+  | ssh oci 'cat >> ~/.ssh/authorized_keys'
+# 3. GitHub secrets (repo → Settings → Environments → production)
+gh secret set OCI_HOST --env production --body 140.238.167.7
+gh secret set OCI_USER --env production --body ubuntu
+gh secret set OCI_DEPLOY_KEY --env production < mirage-deploy
+ssh-keyscan -t ed25519 140.238.167.7 | gh secret set OCI_KNOWN_HOSTS --env production
+rm mirage-deploy
+```
