@@ -39,6 +39,13 @@ export type SendResult =
   | { route: 'transparent'; sent: true; txid: string; explorer: string; assessment: Assessment; forced: boolean }
   | { route: 'guarded'; sent: false; assessment: Assessment; proposal: Proposal };
 
+export interface ReportExit { txid: string; time: number; height: number; amount: string; level: Level; crowd: number; reason: string; explorer: string }
+export interface Report {
+  account: number;
+  exits: ReportExit[];
+  summary: { exits: number; blended: number; narrow: number; linkable: number; entries: number; score: number | null; indexedFrom: number; indexedTo: number };
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -78,6 +85,7 @@ export const api = {
   wallet: (account: number) => request<Wallet>(`/api/wallet?account=${account}`),
   activity: (account: number) => request<Tx[]>(`/api/activity?account=${account}`),
   exits: (account: number) => request<ExitJob[]>(`/api/exits?account=${account}`),
+  report: (account: number) => request<Report>(`/api/report?account=${account}`),
   /** Server-side score. The UI uses checkPrivately() instead so the amount stays on the device. */
   assess: (amount: string) => request<Assessment>('/api/assess', { amount }),
   index: () => request<import('../../../packages/core/src/types').BoundaryIndex>('/api/index'),

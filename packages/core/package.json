@@ -1,16 +1,48 @@
 {
   "name": "mirage-core",
   "version": "0.1.0",
-  "description": "Linkability scoring and exit planning for Zcash shielded-pool boundary crossings",
+  "description": "Linkability scoring and exit planning for Zcash shielded-pool boundary crossings: score how traceable an exit is, and plan a safer one.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "license": "MIT",
   "scripts": {
     "build": "tsc -p .",
-    "test": "node --import tsx --test test/*.test.ts"
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build && npm test"
   },
-  "devDependencies": { "tsx": "^4.19.2", "typescript": "^5.6.3", "@types/node": "^22.10.0" }
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "@types/node": "^22.10.0"
+  },
+  "keywords": [
+    "zcash",
+    "privacy",
+    "shielded",
+    "linkability",
+    "anonymity-set",
+    "deshield",
+    "wallet"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MeghVyas3132/Mirage-Zcash.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/MeghVyas3132/Mirage-Zcash#readme",
+  "author": "Megh Vyas and Anton",
+  "publishConfig": {
+    "access": "public"
+  }
 }

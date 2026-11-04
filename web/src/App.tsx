@@ -10,9 +10,10 @@ import Check from '@/views/Check';
 import ExitDetail from '@/views/ExitDetail';
 import Home from '@/views/Home';
 import Receive from '@/views/Receive';
+import Report from '@/views/Report';
 import Send from '@/views/Send';
 
-export type View = { name: 'home' } | { name: 'send' } | { name: 'receive' } | { name: 'check' } | { name: 'add' } | { name: 'exit'; id: string };
+export type View = { name: 'home' } | { name: 'send' } | { name: 'receive' } | { name: 'check' } | { name: 'add' } | { name: 'exit'; id: string } | { name: 'report' };
 
 // Not a wallet id. Picking this row in the wallet list opens the Add wallet page.
 const ADD_WALLET = 'add';
@@ -108,6 +109,8 @@ export default function App() {
           </div>
         ) : view.name === 'send' ? (
           <Send account={account} onExit={() => setView({ name: 'home' })} onOpenExit={(id) => setView({ name: 'exit', id })} />
+        ) : view.name === 'report' ? (
+          <Report account={account} onBack={() => setView({ name: 'home' })} />
         ) : view.name === 'check' ? (
           <Check onBack={() => setView({ name: 'home' })} onSend={() => setView({ name: 'send' })} />
         ) : view.name === 'receive' ? (
@@ -125,7 +128,7 @@ export default function App() {
         ) : view.name === 'exit' ? (
           <ExitDetail account={account} id={view.id} onBack={() => setView({ name: 'home' })} />
         ) : (
-          <Home key={account.id} account={account} onSend={() => setView({ name: 'send' })} onReceive={() => setView({ name: 'receive' })} onCheck={() => setView({ name: 'check' })} onOpenExit={(id) => setView({ name: 'exit', id })} />
+          <Home key={account.id} account={account} onSend={() => setView({ name: 'send' })} onReceive={() => setView({ name: 'receive' })} onCheck={() => setView({ name: 'check' })} onReport={() => setView({ name: 'report' })} onOpenExit={(id) => setView({ name: 'exit', id })} />
         )}
       </main>
 

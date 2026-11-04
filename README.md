@@ -65,6 +65,7 @@ Settings live in [`.env.example`](.env.example). `EXIT_DELAY_SCALE=0.01` turns t
 |---|---|---|
 | Index every public shield/deshield on testnet (Sapling, Orchard, Ironwood) from lightwalletd compact blocks | ✅ real | `server/src/indexer.ts`; live at `/api/index` |
 | Score an exit: crowd size + candidate entries | ✅ real | `packages/core/src/score.ts`, 8 tests |
+| **Privacy report card**: every past exit from the wallet, re-scored as it looked when it happened (own crossing excluded), with a 0–100 score (crowd = full, narrow = half, linkable = 0) | ✅ real | `GET /api/report`, `web/src/views/Report.tsx`; demo-user: 5 exits, 2 in a crowd, score 70 |
 | **Private check in the browser** ("Check only"): downloads the public index and scores locally, so the amount never reaches any server | ✅ real | `server/public/index.html` (`assessLocal`); matches the server's `mirage-core` result on 18/18 test amounts against the live index |
 | Shielded send with encrypted memo, detected by the receiving wallet | ✅ real | `250fe9867a80df3349127ffe24119d400d37bc03056421e4835919dd29f93cf6` (memo `rent nov (demo)`) |
 | Hold a linkable transparent send | ✅ real | 0.0731 TAZ → `tm…` held at 🔴 crowd 0 |
@@ -113,7 +114,7 @@ Settings live in [`.env.example`](.env.example). `EXIT_DELAY_SCALE=0.01` turns t
   - **`server/src/jobs.ts`:** the scheduler that re-checks and holds pieces.
   - **`packages/core`:** scoring and planning, with no dependencies.
 - **Built during the hack vs before:** everything in this repo was written during the hack (4 Nov 2026). We use zkool, lightwalletd and the lightwallet-protocol definitions as-is.
-- **Reusable parts:** `mirage-core`, a small library any wallet can call before a deshield or swap: `assess(index, {zats, time})` and `planExit(zats)`.
+- **Reusable parts:** `mirage-core` ([npm](https://www.npmjs.com/package/mirage-core)), a small dependency-free library any wallet can call before a deshield or swap: `assess(index, {zats, time})` and `planExit(zats)`. The web app imports the same code, so browser and server scores are identical.
 
 ## 7. What's next (30 days)
 

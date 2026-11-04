@@ -10,7 +10,7 @@ import { useNow, usePoll } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 import balanceCoin from '@/assets/balance-coin.webp';
 
-export default function Home({ account, onSend, onReceive, onCheck, onOpenExit }: { account: Account; onSend: () => void; onReceive: () => void; onCheck: () => void; onOpenExit: (id: string) => void }) {
+export default function Home({ account, onSend, onReceive, onCheck, onReport, onOpenExit }: { account: Account; onSend: () => void; onReceive: () => void; onCheck: () => void; onReport: () => void; onOpenExit: (id: string) => void }) {
   const wallet = usePoll(() => api.wallet(account.id), 30_000, [account.id]);
   const activity = usePoll(() => api.activity(account.id), 30_000, [account.id]);
   const exits = usePoll(() => api.exits(account.id), 15_000, [account.id]);
@@ -47,6 +47,15 @@ export default function Home({ account, onSend, onReceive, onCheck, onOpenExit }
           <History />
         </ActionTile>
       </nav>
+
+      <button type="button" onClick={onReport} className="surface group flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-accent">
+        <span className="flex size-10 items-center justify-center rounded-full bg-success/15 text-success [&_svg]:size-5"><ShieldCheck /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">Privacy report</span>
+          <span className="block text-xs text-muted-foreground">How linkable was each money exit from this wallet?</span>
+        </span>
+        <ChevronRight className="size-5 text-muted-foreground group-hover:text-foreground" />
+      </button>
 
       {jobs[0] && <ExitCard job={jobs[0]} hidden={hidden} onOpen={() => onOpenExit(jobs[0].id)} />}
 

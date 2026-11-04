@@ -158,6 +158,40 @@ export function createApi(indexer: Indexer, jobs: JobStore) {
     return c.json({ job, prepareExplorer: explorer(prepareTxid) });
   });
 
+  /**
+   * Privacy report card: every past exit from this wallet that is visible on the public boundary,
+   * re-scored as it looked at the moment it happened (its own crossing excluded). Reads only.
+   */
+  app.get('/api/report', async (c) => {
+    const w = accountFrom(c);
+    await w.sync();
+    const txs = await w.transactions();
+    // Only transactions this wallet paid for: incoming payments to its own transparent address are someone else's exit.
+    const spent = new Set(txs.filter((t) => Number(t.value) < 0).map((t) => t.txid));
+    const received = new Set(txs.filter((t) => Number(t.value) > 0).map((t) => t.txid));
+    const crossings = indexer.index.crossings.filter((x) => (x.direction === 'deshield' ? spent : received).has(x.txid));
+    const exits = crossings
+      .filter((x) => x.direction === 'deshield' && x.zats !== null)
+      .map((x) => {
+        const others = { ...indexer.index, crossings: indexer.index.crossings.filter((y) => y.txid !== x.txid) };
+        const a = assess(others, { zats: x.zats!, time: x.time });
+        return { txid: x.txid, time: x.time, height: x.height, amount: toZec(x.zats!), level: a.level, crowd: a.crowd, reason: a.reason, explorer: explorer(x.txid) };
+      })
+      .sort((p, q) => q.time - p.time);
+    const entries = crossings.filter((x) => x.direction === 'shield').length;
+    const blended = exits.filter((e) => e.level === 'green').length;
+    const linkable = exits.filter((e) => e.level === 'red').length;
+    return c.json({
+      account: w.id,
+      exits,
+      summary: {
+        exits: exits.length, blended, narrow: exits.length - blended - linkable, linkable, entries,
+        score: exits.length ? Math.round((100 * (blended + 0.5 * (exits.length - blended - linkable))) / exits.length) : null,
+        indexedFrom: indexer.index.fromHeight, indexedTo: indexer.index.toHeight,
+      },
+    });
+  });
+
   app.get('/api/exits', (c) => {
     const account = c.req.query('account');
     const list = account ? jobs.jobs.filter((j) => j.account === Number(account)) : jobs.jobs;
