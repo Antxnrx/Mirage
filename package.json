@@ -1,0 +1,11 @@
+{
+  "name": "mirage",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*", "server"],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "dev:server": "npm run dev -w server",
+    "index": "npm run index -w server"
+  }
+}
