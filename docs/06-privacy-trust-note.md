@@ -9,14 +9,14 @@ Update this as the build changes. It gets copied into the submission.
 2. **What the app reveals, to whom**
    - **Light-wallet server (`testnet.zec.rocks`):** sees our indexer's IP and request timing (public chain data only).
    - **Our index server:** sees that someone downloaded the index (hidden behind Nym mixFetch where enabled). It never receives amounts, addresses or keys.
-   - **Noir Wallet's light-wallet server:** sees the user's IP and timing when Noir syncs and broadcasts. Mirage can't route Noir's own traffic through Nym.
+   - **Light-wallet server, wallet side:** our local wallet engine syncs and broadcasts through `testnet.zec.rocks`, which sees the user's IP and timing unless that traffic goes over Nym.
    - **Chain observers:** see that shielded transactions happened, and their fees. Only if the user chooses a transparent exit do they see each piece as a public deshield (amount and time). That's unavoidable when leaving the pool, so Mirage's job is to make those pieces look like many others.
    - **Our watcher:** the demo watcher holds a viewing key only (no spending key). It can read incoming amounts and memos for the demo wallet.
    - **Our storage:** we keep the public index only; no user data, no logs of checked amounts.
 
 3. **Who users must trust**
    - **Us:** to serve an honest index. The index is rebuildable from public chain data by anyone.
-   - **Noir Wallet:** for keys and signing.
+   - **The local wallet engine (zkool):** keys stay on the user's machine; it runs on localhost only.
    - **Nym:** for network privacy where used.
 
 4. **What we'd fix next**

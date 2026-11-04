@@ -46,7 +46,7 @@ Given a viewing key (read-only), list past exits that were easy to link.
 
 | Mode | For | How it sends |
 |---|---|---|
-| **Check & Send** | Everyday users | Web dApp connected to **Noir Wallet** (testnet). Shielded payments and the prepare step are approved in the Noir popup. |
+| **Check & Send** | Everyday users | Mirage web app backed by the user's own local wallet engine (zkool_graphql on their machine). The app shows the check, and the user approves each shielded payment, prepare step or exit. |
 | **Autopilot** | Power users, the library | **zkool_graphql** wallet engine: a multi-recipient shielded `pay` for the prepare step, scheduled pieces after it, network traffic over **Nym**. |
 
 ## For builders
@@ -59,7 +59,7 @@ The scoring and planning logic ships as a small library (`mirage-core`) that oth
 - **Network:** testnet only for this build.
 
 ## Core flow (hackathon scope, all on public testnet)
-1. **Connect:** connect Noir Wallet (testnet) and show the shielded balance.
+1. **Open:** the web app connects to the local wallet engine and shows the shielded balance.
 2. **Enter:** the user enters an amount and a destination.
 3. **Score:** Mirage scores it against the boundary index built from `testnet.zec.rocks`.
 4. **Shielded destination:** send a **fully shielded payment** with a memo, and show the txid and explorer link.

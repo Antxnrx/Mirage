@@ -12,7 +12,7 @@
                          │ served as a static file (whole index, no per-user queries)
   user's browser ┌───────▼──────────────────────────────┐
                  │ mirage-core (scoring + planning)      │
-                 │ React UI  ── Noir Wallet SDK (send)   │
+                 │ React UI  ── Mirage API ── zkool      │
                  │ Nym mixFetch (index download)         │
                  └───────────────────────────────────────┘
   Autopilot:  zkool_graphql (watch + schedule + pay) ── Nym (broadcast)
@@ -25,8 +25,8 @@
 | **Indexer** | Backend | Streams compact blocks with transparent data and classifies each transaction |
 | **Index API** | Backend | Serves the full index as one JSON file. Clients score locally, so the server never learns which amount a user is checking. |
 | **mirage-core** | Backend | Crowd score: count of crossings within ±tolerance of the amount inside a time window. Planner: split into common denominations, random delays, fresh addresses. |
-| **Web app** | Frontend | React + `@noir-wallet/sdk`. Check screen, plan screen, progress with txids. |
-| **Shielded payments** | Backend + Frontend | Fully shielded `utest1 → utest1` sends with encrypted memos: Noir `sendTransaction` (`fundingSource: 'shielded'`) in the web app, zkool_graphql `pay` with several recipients for the prepare step |
+| **Web app** | Frontend | React, talking to the Mirage API. Check screen, plan screen, progress with txids. |
+| **Shielded payments** | Backend | Fully shielded `utest1 → utest1` sends with encrypted memos through zkool_graphql `pay`; the prepare step is one multi-recipient self-send |
 | **Payment watcher** | Backend | zkool_graphql watch-only account (UFVK, with `birth` height) that detects incoming shielded payments and reads their memos |
 | **Autopilot** | Backend | zkool_graphql account, scheduled pieces after the prepare step |
 | **Nym** | Both | `@nymproject/mix-fetch` for the index download in the browser; team has Nym subscription credits for the dVPN path. Broadcast path to be confirmed with the Nym team. |
@@ -55,7 +55,7 @@ Every core flow produces **fully shielded** transactions on public testnet (`ute
 
 ## Stack
 - **Chain data:** lightwalletd gRPC (`testnet.zec.rocks:443`), `@grpc/grpc-js`
-- **Wallet:** Noir Wallet SDK (testnet extension), zkool_graphql
+- **Wallet:** zkool_graphql (local, testnet)
 - **Network privacy:** Nym Zcash SDK / mixFetch
 - **Proof links:** Zexplorer (`https://zexplorer.app/testnet/tx/<txid>`)
 - **Test coins:** Fauzec faucet (TAZ)

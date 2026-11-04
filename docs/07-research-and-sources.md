@@ -24,7 +24,6 @@
 - Light-wallet protocol (CompactTx with transparent `vin`/`vout`, `poolTypes`): https://github.com/zcash/lightwallet-protocol
 - ZIP 316 (unified addresses), ZIP 317 (fees), ZIP 320 (TEX addresses), ZIP 321 (payment URIs): https://zips.z.cash/
 - Draft ZIP, disabling new value into the transparent pool (2024, still draft): https://forum.zcashcommunity.com/t/draft-zip-disabling-addition-of-new-value-to-the-transparent-pool/46599
-- Noir Wallet SDK: https://docs.zknoir.com/noir-sdk-integration/
 - Nym Zcash SDK: https://zcash-sdk.nym.com/guidance/
 
 ## Notes on accuracy
