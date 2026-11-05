@@ -7,8 +7,10 @@
 | **Track** | Privacy |
 | **Privacy theme(s)** | 1. Private payment rails · 3. Privacy beyond the transaction |
 | **What it is** | Web app + API + reusable TypeScript library (`mirage-core`) |
-| **Live URL** | _TBD (deploying)_ |
-| **Demo video** | _TBD_ |
+| **Live app** | https://mirage.140-238-167-7.nip.io |
+| **Pitch** | https://rapid-prairie-ab2sv1h.tmp.now · permanent copy: https://mirage.140-238-167-7.nip.io/pitch.html |
+| **Demo video** | https://drive.google.com/drive/folders/1jCXO3tLNZINpPmWZkbuI2iZwSORfaUmd?usp=sharing |
+| **Library** | [`mirage-core` on npm](https://www.npmjs.com/package/mirage-core) · `npm install mirage-core` |
 | **Testnet txid** | `78644a966fa467cf3aa99d631d004a3f3b9bcb70500a68145fdd21b3607e1cf0`: a guarded exit's shielded prepare step (one self-send splitting the amount into five notes inside the pool) · https://testnet.zecblock.com/tx/78644a966fa467cf3aa99d631d004a3f3b9bcb70500a68145fdd21b3607e1cf0 |
 | **Team** | Megh Vyas (@MeghVyas3132), Anton (@Antxnrx) |
 
@@ -36,7 +38,7 @@
 
 ## 3. Try it in 5 minutes
 
-**Without installing anything:** _live URL coming. Open it, pick the `demo-user` wallet, then:_
+**Without installing anything:** Open https://mirage.140-238-167-7.nip.io, pick the `demo-user` wallet, then:
 1. Send `0.01` to the other wallet's `utest1…` address (shown under Wallet when you switch accounts): it goes out shielded, and the memo shows up in that wallet's Activity.
 2. Send `0.0731` to a `tm…` address: it is held 🔴 with a split proposal. Click **Run guarded exit** and watch the pieces leave under *Guarded exits*.
 
@@ -124,10 +126,17 @@ Settings live in [`.env.example`](.env.example). `EXIT_DELAY_SCALE=0.01` turns t
 
 ## 8. Links
 
-- Repo: https://github.com/MeghVyas3132/Mirage-Zcash
-- Demo video: _TBD_
-- Live app: _TBD_
-- Docs: [`docs/`](docs/)
+| What | Link |
+|---|---|
+| Live app (Zcash testnet) | https://mirage.140-238-167-7.nip.io |
+| Pitch | https://rapid-prairie-ab2sv1h.tmp.now |
+| Pitch (permanent copy, same page) | https://mirage.140-238-167-7.nip.io/pitch.html |
+| Demo video | https://drive.google.com/drive/folders/1jCXO3tLNZINpPmWZkbuI2iZwSORfaUmd?usp=sharing |
+| Library on npm | https://www.npmjs.com/package/mirage-core |
+| Repo | https://github.com/MeghVyas3132/Mirage-Zcash |
+| Shielded send from the demo film | https://testnet.zecblock.com/tx/6e1abb579d5984be5cd4b6b1f90f93d386310ce3d8a79f688ce6925c8469345d |
+| In-pool split (0 public inputs/outputs) | https://testnet.zecblock.com/tx/78644a966fa467cf3aa99d631d004a3f3b9bcb70500a68145fdd21b3607e1cf0 |
+| Docs | [`docs/`](docs/) · agent/developer handoff: [`AGENTS.md`](AGENTS.md) · feedback: [`FEEDBACK.md`](FEEDBACK.md) |
 
 ## Feedback
 
